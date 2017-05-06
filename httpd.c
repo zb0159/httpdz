@@ -105,6 +105,7 @@ void accept_request(void *arg)
     int cgi = 0;      /* becomes true if server decides this is a CGI
                        * program */
     char *query_string = NULL;
+    char *error_page = "error.html";
 
     numchars = get_line(client, buf, sizeof(buf));
     i = 0; j = 0;
@@ -155,7 +156,9 @@ void accept_request(void *arg)
         /*while ((numchars > 0) 
                   && strcmp("\n", buf)) */ /* read & discard headers */
            /* numchars = get_line(client, buf, sizeof(buf));*/
-        not_found(client);
+        //not_found(client);
+        sprintf(path,"htdocs/%s",error_page);
+        serve_file(client, path);
     }
     else{
         if ((st.st_mode & S_IFMT) == S_IFDIR)
@@ -360,13 +363,13 @@ int get_line(int sock, char *buf, int size)
     while ((i < size - 1) && (c != '\n'))
     {
         n = recv(sock, &c, 1, 0);
-        /* DEBUG printf("%02X\n", c); */
+        printf("a%c\n", c); 
         if (n > 0)
         {
             if (c == '\r')
             {
                 n = recv(sock, &c, 1, MSG_PEEK);
-                /* DEBUG printf("%02X\n", c); */
+                printf("bbbbbbbbbbbbb%c\n", c); 
                 if ((n > 0) && (c == '\n'))
                     recv(sock, &c, 1, 0);
                 else
@@ -443,9 +446,9 @@ void serve_file(int client, const char *filename)
     char buf[1024];
 
     buf[0] = 'A'; buf[1] = '\0';
-    while ((numchars > 0) && strcmp("\n", buf))  /* read & discard headers */
+    while ((numchars>0) && strcmp("\n", buf)){/* read & discard headers*/
         numchars = get_line(client, buf, sizeof(buf));
-
+    }
     resource = fopen(filename, "r");
     if (resource == NULL)
         not_found(client);
@@ -637,7 +640,7 @@ int http()
             error_die("accept");
         /* accept_request(&client_sock); */
         if (pthread_create(&newthread , NULL, (void *)accept_request, (void *)&client_sock) != 0){
-            perror("pthread_create");}else{printf("%d\n",i++);}
+            perror("pthread_create");}else{printf("pthread=%d\n",i++);}
     }
 	
     close(server_sock);
