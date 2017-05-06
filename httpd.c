@@ -358,20 +358,18 @@ int get_line(int sock, char *buf, int size)
 {
     int i = 0;
     char c = '\0';
-    int n;
-
+    int n ;
     while ((i < size - 1) && (c != '\n'))
     {
         n = recv(sock, &c, 1, 0);
-        printf("a%c\n", c); 
         if (n > 0)
         {
             if (c == '\r')
             {
                 n = recv(sock, &c, 1, MSG_PEEK);
-                printf("bbbbbbbbbbbbb%c\n", c); 
-                if ((n > 0) && (c == '\n'))
+                if ((n > 0) && (c == '\n')){
                     recv(sock, &c, 1, 0);
+		}
                 else
                     c = '\n';
             }
