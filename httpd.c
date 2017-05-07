@@ -435,8 +435,7 @@ void not_found(int client)
  *              file descriptor
  *             the name of the file to serve */
 /**********************************************************************/
-void serve_file(int client, const char *filename)
-{
+void serve_file(int client, const char *filename){
     FILE *resource = NULL;
     int numchars = 1;
     char buf[1024];
