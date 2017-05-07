@@ -24,8 +24,6 @@
 #define STDIN   0
 #define STDOUT  1
 #define STDERR  2
-#define handle_error(msg) \
-           do { perror(msg); exit(EXIT_FAILURE); } while (0)
 void accept_request(void *);
 void bad_request(int);
 void cat(int, FILE *);
@@ -50,9 +48,9 @@ void  mmapz(int client,const char *filename){
 	if(addr == NULL){
 	fd = open(filename, O_RDONLY);
 	if (fd == -1)
-		handle_error("open");
+		error_die("open");
 	if (fstat(fd, &sb) == -1)           /* To obtain file size */
-		handle_error("fstat");
+		error_die("fstat");
 	offset = 0;
 	pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
                /* offset for mmap() must be page aligned */
@@ -65,10 +63,9 @@ void  mmapz(int client,const char *filename){
 	addr = mmap(NULL, length + offset - pa_offset, PROT_READ,
                        MAP_SHARED, fd, pa_offset);
 	if (addr == MAP_FAILED)
-               handle_error("mmap");
+               error_die("mmap");
 	close(fd);
 	}
-	//s = write(STDOUT_FILENO, addr + offset - pa_offset, length);
 	while(f_len<length){
 		send(client,addr + offset - pa_offset + f_len,30,0);
 		f_len = f_len + 30;
@@ -100,10 +97,10 @@ void accept_request(void *arg)
     char method[255];
     char url[255];
     char path[512];
+    char *base_dir = "html";
     size_t i, j;
     struct stat st;
-    int cgi = 0;      /* becomes true if server decides this is a CGI
-                       * program */
+    int cgi = 0;/* becomes true if server decides this is CGI * program */
     char *query_string = NULL;
     char *error_page = "error.html";
 
@@ -148,8 +145,9 @@ void accept_request(void *arg)
             query_string++;
         }
     }
-
-    sprintf(path, "htdocs%s", url);
+    printf("%s\n",url);
+    
+    sprintf(path, "%s%s",base_dir, url);
     if (path[strlen(path) - 1] == '/')
         strcat(path, "index.html");
     if (stat(path, &st) == -1) {
@@ -157,7 +155,7 @@ void accept_request(void *arg)
                   && strcmp("\n", buf)) */ /* read & discard headers */
            /* numchars = get_line(client, buf, sizeof(buf));*/
         //not_found(client);
-        sprintf(path,"htdocs/%s",error_page);
+        sprintf(path,"%s/%s",base_dir,error_page);
         serve_file(client, path);
     }
     else{
