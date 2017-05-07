@@ -440,7 +440,6 @@ void serve_file(int client, const char *filename)
     FILE *resource = NULL;
     int numchars = 1;
     char buf[1024];
-
     buf[0] = 'A'; buf[1] = '\0';
     while ((numchars>0) && strcmp("\n", buf)){/* read & discard headers*/
         numchars = get_line(client, buf, sizeof(buf));
