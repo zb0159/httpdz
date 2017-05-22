@@ -559,7 +559,7 @@ int  epollz(){
         perror("epoll_ctl: listen_sock");
         exit(EXIT_FAILURE);
     }
-   if(pid == 0){
+   if(pid == 0){//child process
       for (;;) {
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
