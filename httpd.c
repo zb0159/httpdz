@@ -19,7 +19,6 @@
 #define MAX_EVENTS 1000
 
 #define ISspace(x) isspace((int)(x))
-
 #define SERVER_STRING "Server: zb0159_httpd/0.1.0\r\n"
 #define STDIN   0
 #define STDOUT  1
@@ -38,9 +37,11 @@ int startup(u_short *);
 void unimplemented(int);
 int setnonblocking(int);
 void mmapz(int,const char *);
+/***********************************************************************/
+static char *addr = NULL;
 /************************************************************************/
 void  mmapz(int client,const char *filename){
-	char *addr = NULL;
+
 	int fd;
 	struct stat sb;
 	off_t offset, pa_offset;
@@ -53,6 +54,7 @@ void  mmapz(int client,const char *filename){
 		error_die("fstat");
 	offset = 0;
 	pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
+	printf("pa_offset=%d\n",pa_offset);
                /* offset for mmap() must be page aligned */
 	if (offset >= sb.st_size) {
                fprintf(stderr, "offset is past end of file\n");
@@ -64,8 +66,9 @@ void  mmapz(int client,const char *filename){
                        MAP_SHARED, fd, pa_offset);
 	if (addr == MAP_FAILED)
                error_die("mmap");
-	close(fd);
 	}
+	close(fd);
+	write(client,addr +offset-pa_offset,length);
 	while(f_len<length){
 		send(client,addr + offset - pa_offset + f_len,30,0);
 		f_len = f_len + 30;
@@ -90,7 +93,7 @@ int setnonblocking(int sockfd)
 /**********************************************************************/
 void accept_request(void *arg)
 {
-    pthread_detach(pthread_self());
+    //pthread_detach(pthread_self());
     int client = *(int*)arg;
     char buf[1024];
     size_t numchars;
@@ -522,19 +525,16 @@ void unimplemented(int client)
 }
 
 /**********************************************************************/
-int epollz(){
+int  epollz(){
     struct epoll_event ev, events[MAX_EVENTS];
     int listen_sock, conn_sock, nfds, epollfd;
     int n,m;
     pid_t pid;
-
     /* Set up listening socket, 'listen_sock' (socket(),
  *               bind(), listen()) */
-    int i=0; 
     u_short port = 4000;
     struct sockaddr_in client_name;
     socklen_t  client_name_len = sizeof(client_name);
-    pthread_t newthread;
 
     listen_sock = startup(&port);
     printf("httpd running on port %d\n", port);
@@ -559,7 +559,7 @@ int epollz(){
         perror("epoll_ctl: listen_sock");
         exit(EXIT_FAILURE);
     }
-    if(pid == 0){
+   if(pid == 0){
       for (;;) {
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -579,38 +579,27 @@ int epollz(){
                setnonblocking(conn_sock);
                ev.events = EPOLLIN | EPOLLET;
                ev.data.fd = conn_sock;
-                  if(epoll_ctl(epollfd, 
-			       EPOLL_CTL_ADD, 
-                               conn_sock,&ev) == -1) {
+               if(epoll_ctl(epollfd, 
+	              EPOLL_CTL_ADD, 
+                      conn_sock,&ev) == -1) {
                       perror("epoll_ctl: conn_sock");
                       exit(EXIT_FAILURE);
-                  }
+               }
            }else{
-                 
-	         if (pthread_create(&newthread , NULL, 
-			           (void *)accept_request, 
-                                   (void *)&(events[n].data.fd)) != 0){
-                       perror("pthread_create");
-                 }else{
-		     if(epoll_ctl(epollfd,
-                               EPOLL_CTL_DEL,
-                               events[n].data.fd,&ev) == -1) {
-                            perror("epoll_ctl: conn_sock");
-                            exit(EXIT_FAILURE);
-                  }
-                     printf("%d\n",i++);
-                 }
-             }
-          }
-       }
+                     accept_request((void *)&(events[n].data.fd));
+                }
+             }//end for 2
+          }//end for 1
+        
     }else if(pid > 0){
 	waitpid(-1,NULL,0);
+    }else{
+	error_die("fork error");
     }  
     //end child process
     close(listen_sock);           
-    return 0;   
+    return 0;
 }
-
 /**********************************************************************/
 
 int http()
@@ -649,8 +638,9 @@ int main(){
     if(pid < 0){
         perror("fork");
     }else if(pid == 0){
-	http();
-	//epollz();
+//	http();
+	epollz();
+	//mmapz(1,"Makefile");
     }else{
     	waitpid(pid,&status,0);
     }

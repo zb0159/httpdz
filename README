@@ -1,4 +1,48 @@
 in the base of tinyhttp
 2017-5-5
-in accept_request function add thread 
+in accept_request function add thread
+
+
+2017-5-21
+epollz is right
+remove threads 
+only epoll work
+
+Server Software:        zb0159_httpd/0.1.0
+Server Hostname:        192.168.1.6
+Server Port:            4000
+
+Document Path:          /cjcx.html
+Document Length:        2247 bytes
+
+Concurrency Level:      1000
+Time taken for tests:   76.234 seconds
+Complete requests:      100000
+Failed requests:        0
+Write errors:           0
+Total transferred:      231900000 bytes
+HTML transferred:       224700000 bytes
+Requests per second:    1311.74 [#/sec] (mean)
+Time per request:       762.344 [ms] (mean)
+Time per request:       0.762 [ms] (mean, across all concurrent requests)
+Transfer rate:          2970.64 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    1   3.1      0      31
+Processing:    31  758 130.3    734    1578
+Waiting:        0  383 224.9    375    1359
+Total:         31  759 130.4    734    1578
+
+Percentage of the requests served within a certain time (ms)
+  50%    734
+  66%    734
+  75%    734
+  80%    734
+  90%    750
+  95%   1031
+  98%   1313
+  99%   1406
+
+ 
 
