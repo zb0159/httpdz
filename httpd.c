@@ -148,8 +148,6 @@ void accept_request(void *arg)
             query_string++;
         }
     }
-    printf("%s\n",url);
-    
     sprintf(path, "%s%s",base_dir, url);
     if (path[strlen(path) - 1] == '/')
         strcat(path, "index.html");
