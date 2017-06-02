@@ -17,7 +17,7 @@
 #include <sys/mman.h>
 
 #define MAX_EVENTS 1000
-
+#define MAX_LEN    512 
 #define ISspace(x) isspace((int)(x))
 #define SERVER_STRING "Server: zb0159_httpd/0.1.0\r\n"
 #define STDIN   0
@@ -93,7 +93,7 @@ int setnonblocking(int sockfd)
 /**********************************************************************/
 void accept_request(void *arg)
 {
-    //pthread_detach(pthread_self());
+    pthread_detach(pthread_self());
     int client = *(int*)arg;
     char buf[1024];
     size_t numchars;
@@ -108,6 +108,9 @@ void accept_request(void *arg)
     char *error_page = "error.html";
 
     numchars = get_line(client, buf, sizeof(buf));
+    if(numchars <= 0 ){
+	close(client);	
+    }
     i = 0; j = 0;
     while (!ISspace(buf[i]) && (i < sizeof(method) - 1))
     {
@@ -171,7 +174,6 @@ void accept_request(void *arg)
         else
             execute_cgi(client, path, method, query_string);
     }
-
     close(client);
 }
 
@@ -205,12 +207,25 @@ void bad_request(int client)
 void cat(int client, FILE *resource)
 {
     char buf[1024];
-
+    /*
     fgets(buf, sizeof(buf), resource);
     while (!feof(resource))
     {
-        send(client, buf, strlen(buf), 0);
+        if(strlen(buf) != send(client, buf, strlen(buf), 0)){
+	    error_die("send error");
+	}
         fgets(buf, sizeof(buf), resource);
+    }*/
+    int len,slen;
+    int readsend = 0;
+    while(! feof(resource) ){
+        len = fread(buf,1,MAX_LEN,resource);
+        slen = send(client,buf,len,0);
+	if(slen != len){
+	    printf("%d\n",slen);
+	    perror("send");
+	    break;
+	}
     }
 }
 
@@ -390,13 +405,21 @@ int get_line(int sock, char *buf, int size)
 void headers(int client, const char *filename)
 {
     char buf[1024];
-    (void)filename;  /* could use filename to determine file type */
-
+    char *type[10];
+//  (void)filename;  /* could use filename to determine file type */
+    strtok_r(filename,".",type);
     strcpy(buf, "HTTP/1.0 200 OK\r\n");
     send(client, buf, strlen(buf), 0);
     strcpy(buf, SERVER_STRING);
-    send(client, buf, strlen(buf), 0);
-    sprintf(buf, "Content-Type: text/html\r\n");
+    send(client, buf, strlen(buf), 0);   
+    if(strcasecmp(*type,"html") == 0) 
+        sprintf(buf, "Content-Type: text/html\r\n");
+    if(strcasecmp(*type,"css") == 0)
+ 	sprintf(buf, "Content-Type: text/css\r\n");
+    if(strcasecmp(*type,"jpg") == 0)
+        sprintf(buf, "Content-Type: image/jpg\r\n");
+    if(strcasecmp(*type,"flv") == 0)
+        sprintf(buf, "Content-Type: application/x-shockwave-flash\r\n");
     send(client, buf, strlen(buf), 0);
     strcpy(buf, "\r\n");
     send(client, buf, strlen(buf), 0);
@@ -536,7 +559,7 @@ int  epollz(){
 
     listen_sock = startup(&port);
     printf("httpd running on port %d\n", port);
-    for(m=0;m<8;m++){
+  /*  for(m=0;m<8;m++){
 	pid = fork();
 	if(pid == 0 ){
 	    break;
@@ -544,7 +567,7 @@ int  epollz(){
 	    perror("fork error");
 	    exit(EXIT_FAILURE);
 	}
-    }
+    }*/
     epollfd = epoll_create(1000);
     if (epollfd == -1) {
         perror("epoll_create");
@@ -557,7 +580,7 @@ int  epollz(){
         perror("epoll_ctl: listen_sock");
         exit(EXIT_FAILURE);
     }
-   if(pid == 0){//child process
+  // if(pid == 0){//child process
       for (;;) {
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -583,17 +606,17 @@ int  epollz(){
                       perror("epoll_ctl: conn_sock");
                       exit(EXIT_FAILURE);
                }
-           }else{
+           }else{    
                      accept_request((void *)&(events[n].data.fd));
                 }
              }//end for 2
           }//end for 1
         
-    }else if(pid > 0){
-	waitpid(-1,NULL,0);
-    }else{
-	error_die("fork error");
-    }  
+   // }else if(pid > 0){
+//	waitpid(-1,NULL,0);
+  //  }else{
+//	error_die("fork error");
+  //  }  
     //end child process
     close(listen_sock);           
     return 0;
@@ -620,8 +643,13 @@ int http()
         if (client_sock == -1)
             error_die("accept");
         /* accept_request(&client_sock); */
-        if (pthread_create(&newthread , NULL, (void *)accept_request, (void *)&client_sock) != 0){
-            perror("pthread_create");}else{printf("pthread=%d\n",i++);}
+        if (pthread_create(&newthread , NULL, 
+		 (void *)accept_request,
+		 (void *)&client_sock) != 0){
+            		perror("pthread_create");
+	}else{
+		//printf("pthread=%d\n",i++);
+	}
     }
 	
     close(server_sock);
@@ -636,8 +664,8 @@ int main(){
     if(pid < 0){
         perror("fork");
     }else if(pid == 0){
-//	http();
-	epollz();
+	http();
+//	epollz();
 	//mmapz(1,"Makefile");
     }else{
     	waitpid(pid,&status,0);
