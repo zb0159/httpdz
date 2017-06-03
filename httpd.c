@@ -23,6 +23,8 @@
 #define STDIN   0
 #define STDOUT  1
 #define STDERR  2
+
+#define FORK 
 void accept_request(void *);
 void bad_request(int);
 void cat(int, FILE *);
@@ -250,6 +252,7 @@ void cannot_execute(int client)
 /**********************************************************************/
 /* Print out an error message with perror() (for system errors; based
  * on value of errno, which indicates system call errors) and exit the
+ *
  * program indicating an error. */
 /**********************************************************************/
 void error_die(const char *sc)
@@ -407,7 +410,7 @@ void headers(int client, const char *filename)
     char buf[1024];
     char *type[10];
 //  (void)filename;  /* could use filename to determine file type */
-    strtok_r(filename,".",type);
+    strtok_r((char*)filename,".",type);
     strcpy(buf, "HTTP/1.0 200 OK\r\n");
     send(client, buf, strlen(buf), 0);
     strcpy(buf, SERVER_STRING);
@@ -559,7 +562,8 @@ int  epollz(){
 
     listen_sock = startup(&port);
     printf("httpd running on port %d\n", port);
-  /*  for(m=0;m<8;m++){
+#ifdef FORK8
+    for(m=0;m<8;m++){
 	pid = fork();
 	if(pid == 0 ){
 	    break;
@@ -567,7 +571,8 @@ int  epollz(){
 	    perror("fork error");
 	    exit(EXIT_FAILURE);
 	}
-    }*/
+    }
+#endif
     epollfd = epoll_create(1000);
     if (epollfd == -1) {
         perror("epoll_create");
@@ -580,7 +585,9 @@ int  epollz(){
         perror("epoll_ctl: listen_sock");
         exit(EXIT_FAILURE);
     }
-  // if(pid == 0){//child process
+#ifdef FORK8
+    if(pid == 0){//child process
+#endif
       for (;;) {
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -611,12 +618,13 @@ int  epollz(){
                 }
              }//end for 2
           }//end for 1
-        
-   // }else if(pid > 0){
-//	waitpid(-1,NULL,0);
-  //  }else{
-//	error_die("fork error");
-  //  }  
+#ifdef FORK8        
+   }else if(pid > 0){
+	waitpid(-1,NULL,0);
+   }else{
+	error_die("fork error");
+   }  
+#endif
     //end child process
     close(listen_sock);           
     return 0;
@@ -664,8 +672,8 @@ int main(){
     if(pid < 0){
         perror("fork");
     }else if(pid == 0){
-	http();
-//	epollz();
+//	http();
+	epollz();
 	//mmapz(1,"Makefile");
     }else{
     	waitpid(pid,&status,0);
